@@ -126,6 +126,7 @@ a {
 }
 
 .hero-panel,
+.studio-panel,
 .uploader-shell,
 .workspace-shell,
 .topbar {
@@ -175,6 +176,15 @@ a {
   border: 1px solid var(--line);
   background: linear-gradient(160deg, var(--surface-strong), transparent);
   padding: 16px 18px;
+}
+
+.studio-panel {
+  position: relative;
+  z-index: 1;
+  display: grid;
+  gap: 20px;
+  border-radius: 28px;
+  padding: 22px;
 }
 
 .hero-metrics span {
@@ -305,6 +315,24 @@ a {
   .hero-panel {
     grid-template-columns: 1fr;
     padding: 20px;
+  }
+
+  .hero-metrics {
+    display: flex;
+    gap: 12px;
+    overflow-x: auto;
+    overflow-y: hidden;
+    flex-wrap: nowrap;
+    scrollbar-width: thin;
+    -webkit-overflow-scrolling: touch;
+  }
+
+  .hero-metrics article {
+    flex: 0 0 min(220px, 72vw);
+  }
+
+  .studio-panel {
+    padding: 18px;
   }
 
   .hero-copy h2 {

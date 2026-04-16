@@ -28,7 +28,9 @@
   },
   "dependencies": {
     "@huggingface/transformers": "^4.1.0",
+    "@iconify/svelte": "^5.2.1",
     "@tailwindcss/vite": "^4.2.2",
+    "lucide-svelte": "^1.0.1",
     "tailwindcss": "^4.2.2"
   }
 }

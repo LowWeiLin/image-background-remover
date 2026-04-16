@@ -1,10 +1,17 @@
 <script lang="ts">
   import { appStore } from "../stores/appStore";
+  import type { ImageSelectionRequest } from "../types";
+  import ImageUploader from "./ImageUploader.svelte";
   import RevealOverlay from "./RevealOverlay.svelte";
   import CompareSlider from "./CompareSlider.svelte";
   import ViewToggle from "./ViewToggle.svelte";
   import ExportControls from "./ExportControls.svelte";
 
+  export let uploaderDisabled = false;
+  export let onSelectionError: (message: string) => void = () => {};
+  export let onSelectImage: (
+    request: ImageSelectionRequest,
+  ) => Promise<void> | void = () => {};
   export let onReset: () => void = () => {};
   export let onStartProcessing: () => Promise<void> | void = () => {};
   export let onCancel: () => void = () => {};
@@ -13,16 +20,24 @@
   $: mediaShellStyle = $appStore.selection
     ? `--workspace-media-width: ${$appStore.selection.originalWidth}; --workspace-media-height: ${$appStore.selection.originalHeight};`
     : undefined;
+  $: workspaceDescription = !$appStore.selection
+    ? "Upload, paste, or choose a sample image to begin the client-side pipeline."
+    : $appStore.appState === "model_loading"
+      ? "The selected image stays loaded while the worker prepares the model assets."
+      : $appStore.appState === "processing"
+        ? "The worker is removing the background and preparing exports for this image."
+        : $appStore.appState === "completed" && $appStore.artifacts
+          ? "Compare the original, inspect the mask, and download the final PNG exports."
+          : $appStore.appState === "error"
+            ? "Your image is still loaded. Review the error, retry, or reset back to upload mode."
+            : "Review the selected image, then run the background-removal pipeline.";
 </script>
 
 <section class="workspace-shell">
   <div class="workspace-head">
     <div>
       <h3 class="section-heading">Workspace</h3>
-      <p class="section-copy">
-        Preview the original, compare the cutout, and export the final PNG or
-        grayscale mask.
-      </p>
+      <p class="section-copy">{workspaceDescription}</p>
     </div>
 
     {#if $appStore.backend !== "unknown"}
@@ -40,14 +55,13 @@
 
   <div class="workspace-stage checkerboard">
     {#if !$appStore.selection}
-      <div class="empty-state">
-        <p class="eyebrow">Idle</p>
-        <h4>Choose an image to begin the client-side pipeline.</h4>
-        <p>
-          Nothing leaves the browser. The worker initializes in the background
-          and the UI stays responsive.
-        </p>
-      </div>
+      <ImageUploader
+        merged={true}
+        disabled={uploaderDisabled}
+        showHeader={false}
+        onError={onSelectionError}
+        onSelect={onSelectImage}
+      />
     {:else if $appStore.appState === "ready" || $appStore.appState === "error"}
       <div class="media-shell" style={mediaShellStyle}>
         <div class="preview-frame">
@@ -139,17 +153,19 @@
     {/if}
   </div>
 
-  <div class="workspace-footer">
-    <ViewToggle />
-    <ExportControls
-      canReset={Boolean($appStore.selection || $appStore.artifacts)}
-      cutoutUrl={$appStore.artifacts?.cutoutUrl}
-      maskUrl={$appStore.artifacts?.maskUrl}
-      originalFileName={$appStore.selection?.fileName}
-      {onReset}
-      {onDownload}
-    />
-  </div>
+  {#if $appStore.selection}
+    <div class="workspace-footer">
+      <ViewToggle disabled={!Boolean($appStore.artifacts)} />
+      <ExportControls
+        canReset={Boolean($appStore.selection || $appStore.artifacts)}
+        cutoutUrl={$appStore.artifacts?.cutoutUrl}
+        maskUrl={$appStore.artifacts?.maskUrl}
+        originalFileName={$appStore.selection?.fileName}
+        {onReset}
+        {onDownload}
+      />
+    </div>
+  {/if}
 </section>
 
 <style>
@@ -192,7 +208,6 @@
   }
 
   .preview-frame,
-  .empty-state,
   .workspace-message {
     border-radius: 22px;
     background: var(--surface-strong);
@@ -224,26 +239,16 @@
     background: color-mix(in srgb, var(--paper) 90%, transparent);
   }
 
-  .empty-state,
   .workspace-message {
     padding: 20px;
   }
 
-  .empty-state {
-    display: grid;
-    place-items: center;
-    text-align: center;
-    min-height: 360px;
-  }
-
-  .empty-state h4,
   .workspace-message h4 {
     margin: 10px 0 0;
     font: 700 clamp(1.35rem, 2vw, 1.8rem) / 1.05 var(--font-display);
     letter-spacing: -0.03em;
   }
 
-  .empty-state p:last-child,
   .workspace-message p:last-of-type {
     color: var(--muted);
     margin-top: 12px;

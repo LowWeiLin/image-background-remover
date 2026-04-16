@@ -2,6 +2,8 @@
   import { appStore, setViewMode } from "../stores/appStore";
   import type { ViewMode } from "../types";
 
+  export let disabled = false;
+
   const modes: Array<{ label: string; value: ViewMode }> = [
     { label: "Compare", value: "compare" },
     { label: "Original", value: "original" },
@@ -14,6 +16,7 @@
     <button
       class:active={$appStore.viewMode === mode.value}
       type="button"
+      {disabled}
       on:click={() => setViewMode(mode.value)}
     >
       {mode.label}
@@ -37,6 +40,11 @@
     color: var(--muted);
     border-radius: 999px;
     padding: 0.55rem 0.9rem;
+  }
+
+  .toggle-group button:disabled {
+    opacity: 0.55;
+    cursor: not-allowed;
   }
 
   .toggle-group button.active {

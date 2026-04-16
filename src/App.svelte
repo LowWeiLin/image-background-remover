@@ -2,7 +2,6 @@
   import { get } from "svelte/store";
   import { onDestroy, onMount } from "svelte";
   import Header from "./lib/components/Header.svelte";
-  import ImageUploader from "./lib/components/ImageUploader.svelte";
   import Workspace from "./lib/components/Workspace.svelte";
   import AboutDialog from "./lib/components/AboutDialog.svelte";
   import ToastStack from "./lib/components/ToastStack.svelte";
@@ -639,14 +638,11 @@
       </div>
     </section>
 
-    <ImageUploader
-      disabled={$appStore.appState === "model_loading" ||
-        $appStore.appState === "processing"}
-      onError={handleSelectionError}
-      onSelect={handleImageSelection}
-    />
-
     <Workspace
+      uploaderDisabled={$appStore.appState === "model_loading" ||
+        $appStore.appState === "processing"}
+      onSelectionError={handleSelectionError}
+      onSelectImage={handleImageSelection}
       onReset={resetWorkspace}
       onStartProcessing={startProcessing}
       onCancel={cancelProcessing}

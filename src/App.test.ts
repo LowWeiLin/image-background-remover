@@ -64,4 +64,21 @@ describe("App reset flow", () => {
     expect(URL.revokeObjectURL).toHaveBeenCalledWith("blob:mask");
     expect(URL.revokeObjectURL).toHaveBeenCalledWith("blob:original");
   });
+
+  it("shows upload mode until a selection exists", () => {
+    appStore.set({ ...initialAppStore, notices: [] });
+
+    render(App);
+
+    expect(
+      screen.getByRole("heading", { name: /workspace/i }),
+    ).toBeInTheDocument();
+    expect(
+      screen.getByText(/^choose image$/i).closest("button"),
+    ).toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: /^compare$/i })).toBeNull();
+    expect(
+      screen.queryByRole("button", { name: /reset workspace/i }),
+    ).toBeNull();
+  });
 });

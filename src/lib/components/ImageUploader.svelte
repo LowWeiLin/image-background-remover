@@ -4,6 +4,8 @@
   import { sampleImages } from "../utils/sampleImages";
 
   export let disabled = false;
+  export let merged = false;
+  export let showHeader = true;
   export let onError: (message: string) => void = () => {};
   export let onSelect: (
     request: ImageSelectionRequest,
@@ -275,19 +277,18 @@
 
 <svelte:window on:paste={handlePaste} />
 
-<section class="uploader-shell">
-  <div class="uploader-heading">
-    <div>
-      <h3 class="section-heading">Start with an image</h3>
-      <p class="section-copy">
-        The upload pipeline normalizes EXIF orientation, extracts the first GIF
-        frame, and downscales only for inference safety.
-      </p>
+<section class:uploader-shell-merged={merged} class="uploader-shell">
+  {#if showHeader}
+    <div class="uploader-heading">
+      <div>
+        <h3 class="section-heading">Start with an image</h3>
+        <p class="section-copy">
+          The upload pipeline normalizes EXIF orientation, extracts the first
+          GIF frame, and downscales only for inference safety.
+        </p>
+      </div>
     </div>
-    <span class="badge"
-      ><span class="status-dot"></span>First-frame GIF support</span
-    >
-  </div>
+  {/if}
 
   <div
     class:dragging={isDragging}
@@ -381,6 +382,16 @@
     gap: 16px;
     border-radius: 28px;
     padding: 22px;
+  }
+
+  .uploader-shell.uploader-shell-merged {
+    gap: 14px;
+    padding: 0;
+    border-radius: 0;
+    border: none;
+    background: transparent;
+    box-shadow: none;
+    backdrop-filter: none;
   }
 
   .uploader-heading {
@@ -515,6 +526,10 @@
   @media (max-width: 920px) {
     .uploader-shell {
       padding: 18px;
+    }
+
+    .uploader-shell.uploader-shell-merged {
+      padding: 0;
     }
 
     .dropzone {
