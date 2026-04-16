@@ -42,13 +42,15 @@ describe("ImageUploader", () => {
     );
 
     expect(fetch).toHaveBeenCalled();
+    const sampleFileNames = sampleImages.map((sample) => sample.fileName);
     expect(onSelect).toHaveBeenCalledWith(
       expect.objectContaining({
-        fileName: sampleImages[0].fileName,
+        fileName: expect.stringMatching(/\.webp$/i),
         source: "sample",
         blob: expect.any(Blob),
       }),
     );
+    expect(sampleFileNames).toContain(onSelect.mock.calls[0][0].fileName);
     expect(screen.queryByLabelText("Sample images")).toBeNull();
   });
 

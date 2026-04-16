@@ -19,7 +19,7 @@
   let animationFrame = 0;
   let lastFrameTime = 0;
   let carouselResumeTimer: number | null = null;
-  let railSamples = [...sampleImages];
+  let railSamples = shuffleSamples(sampleImages);
   const MAX_INPUT_BYTES = 100 * 1024 * 1024;
   const SECONDS_PER_IMAGE = 3;
   const CAROUSEL_RESUME_DELAY_MS = 15_000;
@@ -31,6 +31,18 @@
     "image/bmp",
     "image/gif",
   ]);
+
+  function shuffleSamples<T>(samples: T[]) {
+    const shuffled = [...samples];
+    for (let index = shuffled.length - 1; index > 0; index -= 1) {
+      const randomIndex = Math.floor(Math.random() * (index + 1));
+      [shuffled[index], shuffled[randomIndex]] = [
+        shuffled[randomIndex],
+        shuffled[index],
+      ];
+    }
+    return shuffled;
+  }
 
   function openFilePicker() {
     if (fileInput) {
@@ -227,6 +239,14 @@
     railSamples = [...railSamples.slice(1), railSamples[0]];
   }
 
+  function rotateSamplesBackward() {
+    if (railSamples.length < 2) {
+      return;
+    }
+
+    railSamples = [railSamples[railSamples.length - 1], ...railSamples.slice(0, -1)];
+  }
+
   function normalizeScrollPosition() {
     if (!sampleViewport || railSamples.length < 2) {
       return;
@@ -240,6 +260,11 @@
     while (sampleViewport.scrollLeft >= stride) {
       rotateSamplesForward();
       updateScrollPosition(sampleViewport.scrollLeft - stride);
+    }
+
+    while (sampleViewport.scrollLeft <= 0) {
+      rotateSamplesBackward();
+      updateScrollPosition(sampleViewport.scrollLeft + stride);
     }
   }
 
@@ -294,8 +319,9 @@
   }
 
   onMount(() => {
-    if (sampleViewport) {
-      sampleViewport.scrollLeft = 0;
+    const stride = getSampleStride();
+    if (sampleViewport && stride && stride > 0) {
+      sampleViewport.scrollLeft = stride;
     }
 
     animationFrame = window.requestAnimationFrame(tick);
