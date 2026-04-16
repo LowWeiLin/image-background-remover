@@ -52,8 +52,10 @@
           mask.
         </li>
         <li>
-          See <a href="https://huggingface.co/Xenova/modnet" target="_blank"
-            >here</a
+          See <a
+            href="https://huggingface.co/Xenova/modnet"
+            target="_blank"
+            rel="noreferrer">https://huggingface.co/Xenova/modnet</a
           > for the model used.
         </li>
       </ul>
@@ -109,5 +111,12 @@
 
   .dialog-body li + li {
     margin-top: 10px;
+  }
+
+  .dialog-body a {
+    color: var(--accent, #1e88ff);
+    text-decoration: underline;
+    text-underline-offset: 2px;
+    transition: color 160ms ease;
   }
 </style>

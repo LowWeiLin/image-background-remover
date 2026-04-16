@@ -46,7 +46,7 @@
 
     <a
       class="topbar-link"
-      href="https://github.com/"
+      href="https://github.com/LowWeiLin/image-background-remover"
       target="_blank"
       rel="noreferrer"
     >
