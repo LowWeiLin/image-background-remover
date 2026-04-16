@@ -60,6 +60,20 @@ function progressLabel(data: { status?: string; file?: string }) {
   return "Preparing model…";
 }
 
+function isMobileDevice() {
+  const nav = self.navigator as Navigator & {
+    userAgentData?: { mobile?: boolean };
+  };
+
+  if (typeof nav.userAgentData?.mobile === "boolean") {
+    return nav.userAgentData.mobile;
+  }
+
+  return /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(
+    nav.userAgent,
+  );
+}
+
 async function loadPipeline(requestId: number) {
   if (backgroundRemovalPipeline) {
     return backgroundRemovalPipeline;
@@ -70,7 +84,11 @@ async function loadPipeline(requestId: number) {
   }
 
   const hasWebGPU = "gpu" in self.navigator;
-  const preferredDevice: "webgpu" | "wasm" = hasWebGPU ? "webgpu" : "wasm";
+  const preferredDevice: "webgpu" | "wasm" = isMobileDevice()
+    ? "wasm"
+    : hasWebGPU
+      ? "webgpu"
+      : "wasm";
 
   pipelinePromise = (async () => {
     const progress_callback = (data: {

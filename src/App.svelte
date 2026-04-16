@@ -42,6 +42,7 @@
   let guardTimer: number | null = null;
   let revealTimer: number | null = null;
   let mounted = false;
+  let isSelectingImage = false;
   let mediaQuery: MediaQueryList | null = null;
 
   function updateStore(patch: Partial<typeof initialAppStore>) {
@@ -235,6 +236,11 @@
   }
 
   async function handleImageSelection(request: ImageSelectionRequest) {
+    if (isSelectingImage || get(appStore).selection) {
+      return;
+    }
+
+    isSelectingImage = true;
     clearGuard();
     clearRevealTimer();
 
@@ -300,6 +306,8 @@
       trackEvent("processing_failure", {
         stage: "input",
       });
+    } finally {
+      isSelectingImage = false;
     }
   }
 
@@ -640,7 +648,9 @@
 
     <Workspace
       uploaderDisabled={$appStore.appState === "model_loading" ||
-        $appStore.appState === "processing"}
+        $appStore.appState === "processing" ||
+        Boolean($appStore.selection) ||
+        isSelectingImage}
       onSelectionError={handleSelectionError}
       onSelectImage={handleImageSelection}
       onReset={resetWorkspace}

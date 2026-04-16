@@ -360,6 +360,7 @@
               type="button"
               {disabled}
               on:click={() => handleSampleClick(sample)}
+              on:touchend={() => handleSampleClick(sample)}
             >
               <img
                 loading={index < 4 ? "eager" : "lazy"}
