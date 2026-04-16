@@ -62,7 +62,21 @@
         onError={onSelectionError}
         onSelect={onSelectImage}
       />
-    {:else if $appStore.appState === "ready" || $appStore.appState === "error"}
+    {:else if $appStore.appState === "ready"}
+      <div class="media-shell" style={mediaShellStyle}>
+        <div class="preview-frame">
+          <img src={$appStore.selection.originalUrl} alt="Selected source" />
+        </div>
+      </div>
+
+      <div class="workspace-actions ready-actions">
+        <button
+          class="primary-button"
+          type="button"
+          on:click={onStartProcessing}>Remove background</button
+        >
+      </div>
+    {:else if $appStore.appState === "error"}
       <div class="media-shell" style={mediaShellStyle}>
         <div class="preview-frame">
           <img src={$appStore.selection.originalUrl} alt="Selected source" />
@@ -70,19 +84,10 @@
       </div>
 
       <div class="workspace-message">
-        <p class="eyebrow">
-          {$appStore.appState === "error" ? "Retry ready" : "Ready"}
-        </p>
-        <h4>
-          {$appStore.appState === "error"
-            ? "The last run failed, but your source image is still loaded."
-            : "Your source image is normalized and ready for inference."}
-        </h4>
+        <p class="eyebrow">Retry ready</p>
+        <h4>The last run failed, but your source image is still loaded.</h4>
         <p>
-          {$appStore.errorMessage ||
-            ($appStore.selection.downscaled
-              ? "This image will be inferred at a bounded size and composited back to its original dimensions."
-              : "This image can run at its current dimensions.")}
+          {$appStore.errorMessage}
         </p>
         <div class="workspace-actions">
           <button
@@ -280,6 +285,10 @@
 
   .workspace-footer {
     align-items: flex-start;
+  }
+
+  .ready-actions {
+    justify-content: center;
   }
 
   @media (max-width: 920px) {

@@ -132,12 +132,26 @@ export async function createInferenceBlob(
   }
 }
 
-function maskCanvasFromCutoutPixels(
+function sampleMaskAlpha(
   cutoutPixels: Uint8ClampedArray,
   width: number,
   height: number,
+  x: number,
+  y: number,
 ) {
-  const canvas = createCanvas(width, height);
+  const clampedX = Math.min(Math.max(x, 0), width - 1);
+  const clampedY = Math.min(Math.max(y, 0), height - 1);
+  return cutoutPixels[(clampedY * width + clampedX) * 4 + 3];
+}
+
+function createUpscaledMaskImageData(
+  cutoutPixels: Uint8ClampedArray,
+  sourceWidth: number,
+  sourceHeight: number,
+  targetWidth: number,
+  targetHeight: number,
+) {
+  const canvas = createCanvas(targetWidth, targetHeight);
   const context = canvas.getContext("2d", {
     alpha: false,
     willReadFrequently: true,
@@ -147,21 +161,71 @@ function maskCanvasFromCutoutPixels(
     throw new Error("Canvas 2D is not available in this browser.");
   }
 
-  const imageData = context.createImageData(width, height);
-  for (let index = 0; index < cutoutPixels.length; index += 4) {
-    const alpha = cutoutPixels[index + 3];
-    imageData.data[index] = alpha;
-    imageData.data[index + 1] = alpha;
-    imageData.data[index + 2] = alpha;
-    imageData.data[index + 3] = 255;
+  const imageData = context.createImageData(targetWidth, targetHeight);
+  const scaleX = sourceWidth / targetWidth;
+  const scaleY = sourceHeight / targetHeight;
+
+  for (let targetY = 0; targetY < targetHeight; targetY += 1) {
+    const sourceY = (targetY + 0.5) * scaleY - 0.5;
+    const top = Math.floor(sourceY);
+    const bottom = Math.min(top + 1, sourceHeight - 1);
+    const verticalWeight = sourceY - top;
+
+    for (let targetX = 0; targetX < targetWidth; targetX += 1) {
+      const sourceX = (targetX + 0.5) * scaleX - 0.5;
+      const left = Math.floor(sourceX);
+      const right = Math.min(left + 1, sourceWidth - 1);
+      const horizontalWeight = sourceX - left;
+
+      const topLeft = sampleMaskAlpha(
+        cutoutPixels,
+        sourceWidth,
+        sourceHeight,
+        left,
+        top,
+      );
+      const topRight = sampleMaskAlpha(
+        cutoutPixels,
+        sourceWidth,
+        sourceHeight,
+        right,
+        top,
+      );
+      const bottomLeft = sampleMaskAlpha(
+        cutoutPixels,
+        sourceWidth,
+        sourceHeight,
+        left,
+        bottom,
+      );
+      const bottomRight = sampleMaskAlpha(
+        cutoutPixels,
+        sourceWidth,
+        sourceHeight,
+        right,
+        bottom,
+      );
+
+      const topBlend = topLeft + (topRight - topLeft) * horizontalWeight;
+      const bottomBlend =
+        bottomLeft + (bottomRight - bottomLeft) * horizontalWeight;
+      const alpha = Math.round(
+        topBlend + (bottomBlend - topBlend) * verticalWeight,
+      );
+
+      const index = (targetY * targetWidth + targetX) * 4;
+      imageData.data[index] = alpha;
+      imageData.data[index + 1] = alpha;
+      imageData.data[index + 2] = alpha;
+      imageData.data[index + 3] = 255;
+    }
   }
 
-  context.putImageData(imageData, 0, 0);
-  return canvas;
+  return imageData;
 }
 
-function upscaleMask(
-  maskCanvas: HTMLCanvasElement,
+function maskCanvasFromImageData(
+  imageData: ImageData,
   width: number,
   height: number,
 ) {
@@ -175,9 +239,7 @@ function upscaleMask(
     throw new Error("Canvas 2D is not available in this browser.");
   }
 
-  context.imageSmoothingEnabled = true;
-  context.imageSmoothingQuality = "high";
-  context.drawImage(maskCanvas, 0, 0, width, height);
+  context.putImageData(imageData, 0, 0);
   return canvas;
 }
 
@@ -233,35 +295,22 @@ export async function composeArtifactsFromCutoutPixels({
       originalWidth,
       originalHeight,
     );
-    const maskCanvas = maskCanvasFromCutoutPixels(
+    const upscaledMaskImage = createUpscaledMaskImageData(
       cutoutPixels,
       cutoutWidth,
       cutoutHeight,
-    );
-    const upscaledMaskCanvas = upscaleMask(
-      maskCanvas,
-      originalWidth,
-      originalHeight,
-    );
-    const maskContext = upscaledMaskCanvas.getContext("2d", {
-      alpha: false,
-      willReadFrequently: true,
-    });
-
-    if (!maskContext) {
-      throw new Error("Canvas 2D is not available in this browser.");
-    }
-
-    const maskImage = maskContext.getImageData(
-      0,
-      0,
       originalWidth,
       originalHeight,
     );
     for (let index = 0; index < originalImage.data.length; index += 4) {
-      originalImage.data[index + 3] = maskImage.data[index];
+      originalImage.data[index + 3] = upscaledMaskImage.data[index];
     }
     compositeContext.putImageData(originalImage, 0, 0);
+    const upscaledMaskCanvas = maskCanvasFromImageData(
+      upscaledMaskImage,
+      originalWidth,
+      originalHeight,
+    );
 
     const cutoutBlob = await canvasToBlob(compositeCanvas, "image/png");
     const maskBlob = await canvasToBlob(upscaledMaskCanvas, "image/png");
