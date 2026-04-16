@@ -10,7 +10,7 @@
 </script>
 
 {#if viewMode === "compare"}
-  <div class="compare-shell checkerboard">
+  <div class="compare-shell">
     <img class="compare-base" src={cutoutSrc} alt="Processed cutout" />
     <div
       class="compare-overlay"
@@ -34,7 +34,7 @@
     />
   </div>
 {:else}
-  <div class="single-view checkerboard">
+  <div class="single-view">
     <img
       src={viewMode === "original" ? originalSrc : maskSrc}
       alt={viewMode === "original" ? "Original image" : "Mask preview"}

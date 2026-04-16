@@ -54,7 +54,7 @@ describe("ImageUploader", () => {
     expect(screen.queryByLabelText("Sample images")).toBeNull();
   });
 
-  it("pauses the sample rail for 15s after user scrolling and resumes afterward", async () => {
+  it("pauses the sample rail for 5s after user scrolling and resumes afterward", async () => {
     render(ImageUploader);
 
     const rail = screen.getByLabelText("Sample images");
@@ -63,7 +63,7 @@ describe("ImageUploader", () => {
     await fireEvent.wheel(rail);
     expect(rail).toHaveAttribute("data-paused", "true");
 
-    await vi.advanceTimersByTimeAsync(14_999);
+    await vi.advanceTimersByTimeAsync(4_999);
     expect(rail).toHaveAttribute("data-paused", "true");
 
     await vi.advanceTimersByTimeAsync(1);

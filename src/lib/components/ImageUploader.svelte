@@ -22,7 +22,7 @@
   let railSamples = shuffleSamples(sampleImages);
   const MAX_INPUT_BYTES = 100 * 1024 * 1024;
   const SECONDS_PER_IMAGE = 3;
-  const CAROUSEL_RESUME_DELAY_MS = 15_000;
+  const CAROUSEL_RESUME_DELAY_MS = 5_000;
 
   const acceptedMimeTypes = new Set([
     "image/jpeg",
@@ -244,7 +244,10 @@
       return;
     }
 
-    railSamples = [railSamples[railSamples.length - 1], ...railSamples.slice(0, -1)];
+    railSamples = [
+      railSamples[railSamples.length - 1],
+      ...railSamples.slice(0, -1),
+    ];
   }
 
   function normalizeScrollPosition() {
@@ -520,36 +523,6 @@
     scrollbar-width: none;
     scrollbar-color: transparent transparent;
     -webkit-overflow-scrolling: touch;
-  }
-
-  .sample-rail:hover,
-  .sample-rail:focus-within {
-    scrollbar-width: thin;
-    scrollbar-color: color-mix(in srgb, var(--line-strong) 90%, transparent)
-      transparent;
-  }
-
-  .sample-rail::-webkit-scrollbar {
-    height: 0;
-  }
-
-  .sample-rail:hover::-webkit-scrollbar,
-  .sample-rail:focus-within::-webkit-scrollbar {
-    height: 10px;
-  }
-
-  .sample-rail::-webkit-scrollbar-track {
-    background: transparent;
-  }
-
-  .sample-rail::-webkit-scrollbar-thumb {
-    border-radius: 999px;
-    background: transparent;
-  }
-
-  .sample-rail:hover::-webkit-scrollbar-thumb,
-  .sample-rail:focus-within::-webkit-scrollbar-thumb {
-    background: color-mix(in srgb, var(--line-strong) 90%, transparent);
   }
 
   .sample-track {
