@@ -29,7 +29,6 @@
     revokeUrl,
     stemFromFileName,
   } from "./lib/utils/imageUtils";
-  import { initAnalytics, trackEvent } from "./lib/utils/analytics";
 
   const MODEL_TIMEOUT_MS = 180_000;
   const INFERENCE_TIMEOUT_MS = 120_000;
@@ -228,11 +227,6 @@
     };
 
     worker?.postMessage(message, [buffer]);
-    trackEvent("processing_start", {
-      source: selection.source,
-      backend: state.backend,
-      downscaled: selection.downscaled ? "yes" : "no",
-    });
   }
 
   async function handleImageSelection(request: ImageSelectionRequest) {
@@ -288,11 +282,6 @@
         errorMessage: null,
       });
 
-      trackEvent("image_selected", {
-        source: request.source,
-        downscaled: selection.downscaled ? "yes" : "no",
-      });
-
       await processSelection(selection);
     } catch (error) {
       const message =
@@ -303,9 +292,6 @@
         errorMessage: message,
       });
       pushNotice("error", message);
-      trackEvent("processing_failure", {
-        stage: "input",
-      });
     } finally {
       isSelectingImage = false;
     }
@@ -351,13 +337,6 @@
     });
 
     bootstrapWorker();
-
-    if (hadSelection || hadArtifacts) {
-      trackEvent("workspace_reset", {
-        hadSelection: hadSelection ? "yes" : "no",
-        hadArtifacts: hadArtifacts ? "yes" : "no",
-      });
-    }
   }
 
   function cancelProcessing() {
@@ -368,9 +347,6 @@
     updateStore({
       appState: selection ? "ready" : "idle",
       errorMessage: null,
-    });
-    trackEvent("processing_cancel", {
-      hasSelection: selection ? "yes" : "no",
     });
   }
 
@@ -436,11 +412,6 @@
       appState: "processing",
       processingStage: "revealing",
       modelStatusText: "Revealing your cutout…",
-    });
-
-    trackEvent("processing_success", {
-      backend: message.backend,
-      downscaled: state.selection.downscaled ? "yes" : "no",
     });
 
     const prefersReducedMotion = window.matchMedia(
@@ -511,10 +482,6 @@
               ? error.message
               : "Unable to compose the processed image. Please retry.";
           hardResetWorker(failureMessage, "error");
-          trackEvent("processing_failure", {
-            stage: "infer",
-            backend: get(appStore).backend,
-          });
         }
         break;
       }
@@ -527,10 +494,6 @@
       case "error": {
         if (message.stage === "init") {
           hardResetWorker(message.message, "error");
-          trackEvent("processing_failure", {
-            stage: message.stage,
-            backend: get(appStore).backend,
-          });
           break;
         }
 
@@ -542,10 +505,6 @@
           processingStage: null,
           errorMessage: message.message,
           pendingAutoProcess: false,
-        });
-        trackEvent("processing_failure", {
-          stage: message.stage,
-          backend: state.backend,
         });
         break;
       }
@@ -565,14 +524,10 @@
       kind === "cutout" ? `${fileStem}_removed.png` : `${fileStem}_mask.png`;
     downloadObjectUrl(target, fileName);
     pushNotice("success", `Downloaded ${fileName}.`);
-    trackEvent(kind === "cutout" ? "download_cutout" : "download_mask", {
-      backend: state.backend,
-    });
   }
 
   onMount(() => {
     mounted = true;
-    initAnalytics(import.meta.env.VITE_PLAUSIBLE_DOMAIN);
     mediaQuery = window.matchMedia("(prefers-color-scheme: dark)");
     const handleMediaChange = () => {
       if (get(appStore).theme === "system") {

@@ -11,7 +11,8 @@
     "check": "svelte-check --tsconfig ./tsconfig.app.json && tsc -p tsconfig.node.json",
     "test": "vitest",
     "test:run": "vitest run",
-    "deploy": "npm run build"
+    "deploy": "npm run build",
+    "samples:webp": "node scripts/convert-samples-to-webp.js"
   },
   "devDependencies": {
     "@sveltejs/vite-plugin-svelte": "^6.2.4",
