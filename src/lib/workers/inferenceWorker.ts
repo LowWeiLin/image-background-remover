@@ -69,64 +69,79 @@ async function loadPipeline(requestId: number) {
     return pipelinePromise;
   }
 
-  const candidates: Array<{
-    backend: BackendType;
-    device: "webgpu" | "wasm";
-    dtype?: "fp32" | "q8";
-  }> = [
-    { backend: "webgpu", device: "webgpu", dtype: "fp32" },
-    { backend: "wasm", device: "wasm", dtype: "q8" },
-  ];
+  const hasWebGPU = "gpu" in self.navigator;
+  const preferredDevice: "webgpu" | "wasm" = hasWebGPU ? "webgpu" : "wasm";
 
   pipelinePromise = (async () => {
-    let lastError: unknown = null;
+    const progress_callback = (data: {
+      progress?: number;
+      loaded?: number;
+      total?: number;
+      status?: string;
+      file?: string;
+    }) => {
+      const progress =
+        typeof data.progress === "number"
+          ? data.progress
+          : data.loaded && data.total
+            ? (data.loaded / data.total) * 100
+            : 0;
 
-    for (const candidate of candidates) {
+      post({
+        type: "model_progress",
+        requestId,
+        progress,
+        label: progressLabel(data),
+      });
+    };
+
+    try {
+      const loadedPipeline = await withTimeout(
+        pipeline("background-removal", "Xenova/modnet", {
+          device: preferredDevice,
+          dtype: "fp32",
+          progress_callback,
+        }) as Promise<BackgroundRemovalPipeline>,
+        MODEL_TIMEOUT_MS,
+        "Model loading timed out in the worker.",
+      );
+
+      backgroundRemovalPipeline = loadedPipeline;
+      resolvedBackend = preferredDevice;
+      post({ type: "worker_ready", backend: resolvedBackend });
+      post({ type: "model_loaded", requestId, backend: resolvedBackend });
+      return loadedPipeline;
+    } catch (primaryError) {
+      if (preferredDevice !== "webgpu") {
+        pipelinePromise = null;
+        throw primaryError instanceof Error
+          ? primaryError
+          : new Error("Unable to initialize the background-removal model.");
+      }
+
       try {
         const loadedPipeline = await withTimeout(
           pipeline("background-removal", "Xenova/modnet", {
-            device: candidate.device,
-            dtype: candidate.dtype,
-            progress_callback: (data: {
-              progress?: number;
-              loaded?: number;
-              total?: number;
-              status?: string;
-              file?: string;
-            }) => {
-              const progress =
-                typeof data.progress === "number"
-                  ? data.progress
-                  : data.loaded && data.total
-                    ? (data.loaded / data.total) * 100
-                    : 0;
-
-              post({
-                type: "model_progress",
-                requestId,
-                progress,
-                label: progressLabel(data),
-              });
-            },
+            device: "wasm",
+            dtype: "fp32",
+            progress_callback,
           }) as Promise<BackgroundRemovalPipeline>,
           MODEL_TIMEOUT_MS,
           "Model loading timed out in the worker.",
         );
 
         backgroundRemovalPipeline = loadedPipeline;
-        resolvedBackend = candidate.backend;
+        resolvedBackend = "wasm";
         post({ type: "worker_ready", backend: resolvedBackend });
         post({ type: "model_loaded", requestId, backend: resolvedBackend });
         return loadedPipeline;
-      } catch (error) {
-        lastError = error;
+      } catch (fallbackError) {
+        pipelinePromise = null;
+        throw fallbackError instanceof Error
+          ? fallbackError
+          : new Error("Unable to initialize the background-removal model.");
       }
     }
-
-    pipelinePromise = null;
-    throw lastError instanceof Error
-      ? lastError
-      : new Error("Unable to initialize the background-removal model.");
   })();
 
   return pipelinePromise;
