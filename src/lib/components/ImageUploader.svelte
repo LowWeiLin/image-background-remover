@@ -15,11 +15,14 @@
   let sampleViewport: HTMLDivElement | null = null;
   let isDragging = false;
   let isCarouselPaused = false;
+  let hideSampleRail = false;
   let animationFrame = 0;
   let lastFrameTime = 0;
+  let carouselResumeTimer: number | null = null;
   let railSamples = [...sampleImages];
   const MAX_INPUT_BYTES = 100 * 1024 * 1024;
   const SECONDS_PER_IMAGE = 3;
+  const CAROUSEL_RESUME_DELAY_MS = 15_000;
 
   const acceptedMimeTypes = new Set([
     "image/jpeg",
@@ -81,6 +84,8 @@
   }
 
   async function handleSampleClick(sample: (typeof sampleImages)[number]) {
+    hideSampleRail = true;
+
     try {
       const response = await fetch(sample.url);
       if (!response.ok) {
@@ -161,7 +166,26 @@
     lastFrameTime = 0;
   }
 
+  function clearCarouselResumeTimer() {
+    if (carouselResumeTimer !== null) {
+      window.clearTimeout(carouselResumeTimer);
+      carouselResumeTimer = null;
+    }
+  }
+
+  function scheduleCarouselResume() {
+    clearCarouselResumeTimer();
+    carouselResumeTimer = window.setTimeout(() => {
+      carouselResumeTimer = null;
+      resumeCarousel();
+    }, CAROUSEL_RESUME_DELAY_MS);
+  }
+
   function resumeCarousel() {
+    if (carouselResumeTimer !== null) {
+      return;
+    }
+
     isCarouselPaused = false;
     lastFrameTime = 0;
   }
@@ -239,6 +263,15 @@
     normalizeScrollPosition();
   }
 
+  function handleCarouselScrollInteraction() {
+    if (railSamples.length < 2) {
+      return;
+    }
+
+    pauseCarousel();
+    scheduleCarouselResume();
+  }
+
   function tick(timestamp: number) {
     if (sampleViewport && railSamples.length > 1 && !isCarouselPaused) {
       if (!lastFrameTime) {
@@ -269,6 +302,8 @@
   });
 
   onDestroy(() => {
+    clearCarouselResumeTimer();
+
     if (animationFrame) {
       window.cancelAnimationFrame(animationFrame);
     }
@@ -332,7 +367,7 @@
     />
   </div>
 
-  {#if sampleImages.length > 0}
+  {#if sampleImages.length > 0 && !hideSampleRail}
     <div class="sample-rail-shell">
       <!-- svelte-ignore a11y_no_noninteractive_element_interactions -->
       <div
@@ -348,9 +383,10 @@
         on:pointerenter={handleCarouselInteractionStart}
         on:pointerleave={handleCarouselInteractionEnd}
         on:scroll={handleCarouselScroll}
-        on:touchend={handleCarouselInteractionEnd}
+        on:touchend={handleCarouselScrollInteraction}
+        on:touchmove={handleCarouselScrollInteraction}
         on:touchstart={handleCarouselInteractionStart}
-        on:wheel={handleCarouselInteractionStart}
+        on:wheel={handleCarouselScrollInteraction}
       >
         <div class="sample-track">
           {#each railSamples as sample, index (sample.id)}
@@ -360,7 +396,6 @@
               type="button"
               {disabled}
               on:click={() => handleSampleClick(sample)}
-              on:touchend={() => handleSampleClick(sample)}
             >
               <img
                 loading={index < 4 ? "eager" : "lazy"}

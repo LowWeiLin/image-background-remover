@@ -23,7 +23,7 @@ describe("ImageUploader", () => {
     );
   });
 
-  it("loads a clicked sample image and forwards it to onSelect", async () => {
+  it("loads a clicked sample image, forwards it to onSelect, and hides the sample rail", async () => {
     const onSelect = vi.fn();
     vi.stubGlobal(
       "fetch",
@@ -49,18 +49,22 @@ describe("ImageUploader", () => {
         blob: expect.any(Blob),
       }),
     );
+    expect(screen.queryByLabelText("Sample images")).toBeNull();
   });
 
-  it("pauses the sample rail during interaction and resumes after idle time", async () => {
+  it("pauses the sample rail for 15s after user scrolling and resumes afterward", async () => {
     render(ImageUploader);
 
     const rail = screen.getByLabelText("Sample images");
     expect(rail).toHaveAttribute("data-paused", "false");
 
-    await fireEvent.pointerEnter(rail);
+    await fireEvent.wheel(rail);
     expect(rail).toHaveAttribute("data-paused", "true");
 
-    await fireEvent.pointerLeave(rail);
+    await vi.advanceTimersByTimeAsync(14_999);
+    expect(rail).toHaveAttribute("data-paused", "true");
+
+    await vi.advanceTimersByTimeAsync(1);
     expect(rail).toHaveAttribute("data-paused", "false");
   });
 });
