@@ -1,0 +1,55 @@
+import { defineConfig } from "vite";
+import { svelte } from "@sveltejs/vite-plugin-svelte";
+import tailwindcss from "@tailwindcss/vite";
+import { VitePWA } from "vite-plugin-pwa";
+
+export default defineConfig({
+  base: "./",
+  plugins: [
+    tailwindcss(),
+    svelte(),
+    VitePWA({
+      registerType: "autoUpdate",
+      injectRegister: "auto",
+      includeAssets: ["brand-mark.svg"],
+      manifest: {
+        name: "Image Background Remover",
+        short_name: "BG Remover",
+        description:
+          "Private in-browser image background removal powered by Transformers.js.",
+        theme_color: "#e86737",
+        background_color: "#f6efe6",
+        display: "standalone",
+        start_url: "./",
+        icons: [
+          {
+            src: "brand-mark.svg",
+            sizes: "any",
+            type: "image/svg+xml",
+            purpose: "any",
+          },
+        ],
+      },
+      workbox: {
+        globPatterns: ["**/*.{js,css,html,svg,png,webp,woff2}"],
+        navigateFallback: "index.html",
+        runtimeCaching: [
+          {
+            urlPattern: ({ sameOrigin }) => sameOrigin,
+            handler: "StaleWhileRevalidate",
+            options: {
+              cacheName: "app-runtime",
+              cacheableResponse: {
+                statuses: [0, 200],
+              },
+              expiration: {
+                maxEntries: 64,
+                maxAgeSeconds: 60 * 60 * 24 * 7,
+              },
+            },
+          },
+        ],
+      },
+    }),
+  ],
+});
