@@ -19,7 +19,7 @@
       <span></span>
     </div>
     <div>
-      <p class="eyebrow">Image craft</p>
+      <p class="eyebrow">Image</p>
       <h1>Background Remover</h1>
     </div>
   </div>

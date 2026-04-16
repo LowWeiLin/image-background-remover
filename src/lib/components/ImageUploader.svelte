@@ -1,8 +1,7 @@
 <script lang="ts">
-  import portraitSample from "../../assets/samples/portrait.svg";
-  import fullBodySample from "../../assets/samples/full-body.svg";
-  import productSample from "../../assets/samples/product.svg";
+  import { onDestroy, onMount } from "svelte";
   import type { ImageSelectionRequest } from "../types";
+  import { sampleImages } from "../utils/sampleImages";
 
   export let disabled = false;
   export let onError: (message: string) => void = () => {};
@@ -11,29 +10,14 @@
   ) => Promise<void> | void = () => {};
 
   let fileInput: HTMLInputElement | null = null;
+  let sampleViewport: HTMLDivElement | null = null;
   let isDragging = false;
+  let isCarouselPaused = false;
+  let animationFrame = 0;
+  let lastFrameTime = 0;
+  let railSamples = [...sampleImages];
   const MAX_INPUT_BYTES = 100 * 1024 * 1024;
-
-  const sampleImages = [
-    {
-      label: "Portrait",
-      caption: "Soft light against a warm backdrop",
-      url: portraitSample,
-      fileName: "sample-portrait.png",
-    },
-    {
-      label: "Full body",
-      caption: "Standing pose for edge-detail checks",
-      url: fullBodySample,
-      fileName: "sample-full-body.png",
-    },
-    {
-      label: "Product",
-      caption: "Hard edges and reflective surfaces",
-      url: productSample,
-      fileName: "sample-product.png",
-    },
-  ];
+  const SECONDS_PER_IMAGE = 3;
 
   const acceptedMimeTypes = new Set([
     "image/jpeg",
@@ -169,6 +153,124 @@
       openFilePicker();
     }
   }
+
+  function pauseCarousel() {
+    isCarouselPaused = true;
+    lastFrameTime = 0;
+  }
+
+  function resumeCarousel() {
+    isCarouselPaused = false;
+    lastFrameTime = 0;
+  }
+
+  function updateScrollPosition(nextScrollLeft: number) {
+    if (!sampleViewport) {
+      return;
+    }
+
+    sampleViewport.scrollLeft = nextScrollLeft;
+  }
+
+  function getSampleStride() {
+    if (!sampleViewport || railSamples.length < 2) {
+      return;
+    }
+
+    const track = sampleViewport.querySelector<HTMLElement>(".sample-track");
+    const firstButton = track?.querySelector<HTMLElement>(
+      ".sample-image-button",
+    );
+    if (!track || !firstButton) {
+      return;
+    }
+
+    const computedTrackStyle = window.getComputedStyle(track);
+    const gap = Number.parseFloat(
+      computedTrackStyle.columnGap || computedTrackStyle.gap || "0",
+    );
+
+    return firstButton.offsetWidth + gap;
+  }
+
+  function rotateSamplesForward() {
+    if (railSamples.length < 2) {
+      return;
+    }
+
+    railSamples = [...railSamples.slice(1), railSamples[0]];
+  }
+
+  function normalizeScrollPosition() {
+    if (!sampleViewport || railSamples.length < 2) {
+      return;
+    }
+
+    const stride = getSampleStride();
+    if (!stride || stride <= 0) {
+      return;
+    }
+
+    while (sampleViewport.scrollLeft >= stride) {
+      rotateSamplesForward();
+      updateScrollPosition(sampleViewport.scrollLeft - stride);
+    }
+  }
+
+  function handleCarouselInteractionStart() {
+    if (railSamples.length < 2) {
+      return;
+    }
+
+    pauseCarousel();
+  }
+
+  function handleCarouselInteractionEnd() {
+    if (railSamples.length < 2) {
+      return;
+    }
+
+    resumeCarousel();
+  }
+
+  function handleCarouselScroll() {
+    normalizeScrollPosition();
+  }
+
+  function tick(timestamp: number) {
+    if (sampleViewport && railSamples.length > 1 && !isCarouselPaused) {
+      if (!lastFrameTime) {
+        lastFrameTime = timestamp;
+      }
+
+      const delta = timestamp - lastFrameTime;
+      const stride = getSampleStride();
+      if (stride && stride > 0) {
+        const pixelsPerSecond = stride / SECONDS_PER_IMAGE;
+        updateScrollPosition(
+          sampleViewport.scrollLeft + (delta * pixelsPerSecond) / 1000,
+        );
+        normalizeScrollPosition();
+      }
+    }
+
+    lastFrameTime = timestamp;
+    animationFrame = window.requestAnimationFrame(tick);
+  }
+
+  onMount(() => {
+    if (sampleViewport) {
+      sampleViewport.scrollLeft = 0;
+    }
+
+    animationFrame = window.requestAnimationFrame(tick);
+  });
+
+  onDestroy(() => {
+    if (animationFrame) {
+      window.cancelAnimationFrame(animationFrame);
+    }
+  });
 </script>
 
 <svelte:window on:paste={handlePaste} />
@@ -215,7 +317,9 @@
         {disabled}
         on:click={openFilePicker}>Choose image</button
       >
-      <span class="dropzone-hint">or press Ctrl/Cmd + V</span>
+      <span class="dropzone-hint"
+        >or paste with Ctrl/Cmd + V, or pick from the samples.</span
+      >
     </div>
 
     <input
@@ -227,20 +331,46 @@
     />
   </div>
 
-  <div class="sample-grid">
-    {#each sampleImages as sample}
-      <button
-        class="sample-card"
-        type="button"
-        {disabled}
-        on:click={() => handleSampleClick(sample)}
+  {#if sampleImages.length > 0}
+    <div class="sample-rail-shell">
+      <!-- svelte-ignore a11y_no_noninteractive_element_interactions -->
+      <div
+        bind:this={sampleViewport}
+        aria-label="Sample images"
+        class="sample-rail"
+        data-paused={isCarouselPaused ? "true" : "false"}
+        role="region"
+        on:focusin={handleCarouselInteractionStart}
+        on:focusout={handleCarouselInteractionEnd}
+        on:mousedown={handleCarouselInteractionStart}
+        on:mouseup={handleCarouselInteractionEnd}
+        on:pointerenter={handleCarouselInteractionStart}
+        on:pointerleave={handleCarouselInteractionEnd}
+        on:scroll={handleCarouselScroll}
+        on:touchend={handleCarouselInteractionEnd}
+        on:touchstart={handleCarouselInteractionStart}
+        on:wheel={handleCarouselInteractionStart}
       >
-        <img src={sample.url} alt="" />
-        <span>{sample.label}</span>
-        <small>{sample.caption}</small>
-      </button>
-    {/each}
-  </div>
+        <div class="sample-track">
+          {#each railSamples as sample, index (sample.id)}
+            <button
+              aria-label={`Use sample ${sample.label}`}
+              class="sample-image-button"
+              type="button"
+              {disabled}
+              on:click={() => handleSampleClick(sample)}
+            >
+              <img
+                loading={index < 4 ? "eager" : "lazy"}
+                src={sample.url}
+                alt=""
+              />
+            </button>
+          {/each}
+        </div>
+      </div>
+    </div>
+  {/if}
 </section>
 
 <style>
@@ -303,37 +433,83 @@
     font-size: 0.94rem;
   }
 
-  .sample-grid {
-    display: grid;
-    grid-template-columns: repeat(3, minmax(0, 1fr));
-    gap: 12px;
+  .sample-rail-shell {
+    position: relative;
+    min-width: 0;
   }
 
-  .sample-card {
-    display: grid;
-    gap: 10px;
-    text-align: left;
-    border-radius: 20px;
-    border: 1px solid var(--line);
-    background: var(--surface-strong);
-    padding: 10px;
-  }
-
-  .sample-card img {
+  .sample-rail {
     width: 100%;
-    aspect-ratio: 1.18;
+    max-width: 100%;
+    overflow-x: auto;
+    overflow-y: hidden;
+    padding-bottom: 8px;
+    scrollbar-width: none;
+    scrollbar-color: transparent transparent;
+    -webkit-overflow-scrolling: touch;
+  }
+
+  .sample-rail:hover,
+  .sample-rail:focus-within {
+    scrollbar-width: thin;
+    scrollbar-color: color-mix(in srgb, var(--line-strong) 90%, transparent)
+      transparent;
+  }
+
+  .sample-rail::-webkit-scrollbar {
+    height: 0;
+  }
+
+  .sample-rail:hover::-webkit-scrollbar,
+  .sample-rail:focus-within::-webkit-scrollbar {
+    height: 10px;
+  }
+
+  .sample-rail::-webkit-scrollbar-track {
+    background: transparent;
+  }
+
+  .sample-rail::-webkit-scrollbar-thumb {
+    border-radius: 999px;
+    background: transparent;
+  }
+
+  .sample-rail:hover::-webkit-scrollbar-thumb,
+  .sample-rail:focus-within::-webkit-scrollbar-thumb {
+    background: color-mix(in srgb, var(--line-strong) 90%, transparent);
+  }
+
+  .sample-track {
+    display: flex;
+    gap: 12px;
+    width: max-content;
+    flex-wrap: nowrap;
+  }
+
+  .sample-image-button {
+    flex: 0 0 clamp(144px, 17vw, 188px);
+    padding: 0;
+    border: none;
+    background: transparent;
+    border-radius: 22px;
+    overflow: hidden;
+    box-shadow: 0 10px 24px rgba(32, 22, 19, 0.12);
+    transition:
+      transform 160ms ease,
+      box-shadow 160ms ease,
+      opacity 160ms ease;
+  }
+
+  .sample-image-button:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 16px 30px rgba(32, 22, 19, 0.18);
+  }
+
+  .sample-image-button img {
+    width: 100%;
+    aspect-ratio: 0.78;
     object-fit: cover;
-    border-radius: 14px;
-    border: 1px solid var(--line);
     background: color-mix(in srgb, var(--paper) 88%, transparent);
-  }
-
-  .sample-card span {
-    font-weight: 700;
-  }
-
-  .sample-card small {
-    color: var(--muted);
   }
 
   @media (max-width: 920px) {
@@ -345,8 +521,8 @@
       padding: 20px;
     }
 
-    .sample-grid {
-      grid-template-columns: 1fr;
+    .sample-image-button {
+      flex-basis: clamp(126px, 38vw, 168px);
     }
   }
 </style>

@@ -35,16 +35,16 @@
 <style>
   .overlay-shell {
     position: relative;
+    height: 100%;
     overflow: hidden;
     border-radius: 22px;
     border: 1px solid var(--line);
-    min-height: 360px;
     background: var(--surface-strong);
   }
 
   .overlay-image {
     width: 100%;
-    max-height: 520px;
+    height: 100%;
     object-fit: contain;
     margin: 0 auto;
   }

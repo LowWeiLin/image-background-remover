@@ -1,13 +1,20 @@
-import { defineConfig } from "vite";
+import { defineConfig } from "vitest/config";
 import { svelte } from "@sveltejs/vite-plugin-svelte";
+import { svelteTesting } from "@testing-library/svelte/vite";
 import tailwindcss from "@tailwindcss/vite";
 import { VitePWA } from "vite-plugin-pwa";
 
 export default defineConfig({
   base: "./",
+  test: {
+    environment: "jsdom",
+    setupFiles: "./src/test/setup.ts",
+    css: true,
+  },
   plugins: [
     tailwindcss(),
     svelte(),
+    svelteTesting(),
     VitePWA({
       registerType: "autoUpdate",
       injectRegister: "auto",
@@ -31,7 +38,7 @@ export default defineConfig({
         ],
       },
       workbox: {
-        globPatterns: ["**/*.{js,css,html,svg,png,webp,woff2}"],
+        globPatterns: ["**/*.{js,css,html,svg,woff2}"],
         navigateFallback: "index.html",
         runtimeCaching: [
           {

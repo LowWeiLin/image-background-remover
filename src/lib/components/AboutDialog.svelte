@@ -51,6 +51,11 @@
           Exports include a transparent cutout PNG and a grayscale foreground
           mask.
         </li>
+        <li>
+          See <a href="https://huggingface.co/Xenova/modnet" target="_blank"
+            >here</a
+          > for the model used.
+        </li>
       </ul>
     </div>
   </div>

@@ -313,6 +313,46 @@
     await processSelection(selection);
   }
 
+  function resetWorkspace() {
+    const state = get(appStore);
+    const hadSelection = Boolean(state.selection);
+    const hadArtifacts = Boolean(state.artifacts);
+
+    clearGuard();
+    clearRevealTimer();
+    worker?.terminate();
+    worker = null;
+    activeRequestId = 0;
+
+    disposeArtifacts(state.artifacts);
+    disposeSelection(state.selection);
+
+    updateStore({
+      appState: "idle",
+      processingStage: null,
+      modelReady: false,
+      modelProgress: 0,
+      modelStatusText: "Preparing model…",
+      backend: "unknown",
+      warning: null,
+      errorMessage: null,
+      selection: null,
+      artifacts: null,
+      currentRequestId: 0,
+      pendingAutoProcess: false,
+      viewMode: "compare",
+    });
+
+    bootstrapWorker();
+
+    if (hadSelection || hadArtifacts) {
+      trackEvent("workspace_reset", {
+        hadSelection: hadSelection ? "yes" : "no",
+        hadArtifacts: hadArtifacts ? "yes" : "no",
+      });
+    }
+  }
+
   function cancelProcessing() {
     const selection = get(appStore).selection;
     hardResetWorker(
@@ -576,7 +616,7 @@
     <section class="hero-panel">
       <div class="hero-copy">
         <p class="eyebrow">Private. Browser-native. No upload queue.</p>
-        <h2>Background removal with a calm UI and a real worker pipeline.</h2>
+        <h2>Simple image background removal in your browser.</h2>
         <p class="lede">
           Drop a photo, paste from your clipboard, or test a bundled sample. The
           app runs the model on-device, keeps the original resolution for
@@ -607,6 +647,7 @@
     />
 
     <Workspace
+      onReset={resetWorkspace}
       onStartProcessing={startProcessing}
       onCancel={cancelProcessing}
       onDownload={handleDownload}

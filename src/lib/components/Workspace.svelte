@@ -5,9 +5,14 @@
   import ViewToggle from "./ViewToggle.svelte";
   import ExportControls from "./ExportControls.svelte";
 
+  export let onReset: () => void = () => {};
   export let onStartProcessing: () => Promise<void> | void = () => {};
   export let onCancel: () => void = () => {};
   export let onDownload: (kind: "cutout" | "mask") => void = () => {};
+
+  $: mediaShellStyle = $appStore.selection
+    ? `--workspace-media-width: ${$appStore.selection.originalWidth}; --workspace-media-height: ${$appStore.selection.originalHeight};`
+    : undefined;
 </script>
 
 <section class="workspace-shell">
@@ -44,8 +49,10 @@
         </p>
       </div>
     {:else if $appStore.appState === "ready" || $appStore.appState === "error"}
-      <div class="preview-frame">
-        <img src={$appStore.selection.originalUrl} alt="Selected source" />
+      <div class="media-shell" style={mediaShellStyle}>
+        <div class="preview-frame">
+          <img src={$appStore.selection.originalUrl} alt="Selected source" />
+        </div>
       </div>
 
       <div class="workspace-message">
@@ -72,11 +79,13 @@
         </div>
       </div>
     {:else if $appStore.appState === "model_loading"}
-      <div class="preview-frame">
-        <img
-          src={$appStore.selection.originalUrl}
-          alt="Source while the model loads"
-        />
+      <div class="media-shell" style={mediaShellStyle}>
+        <div class="preview-frame">
+          <img
+            src={$appStore.selection.originalUrl}
+            alt="Source while the model loads"
+          />
+        </div>
       </div>
 
       <div class="workspace-message">
@@ -96,11 +105,13 @@
         </div>
       </div>
     {:else if $appStore.appState === "processing"}
-      <RevealOverlay
-        originalSrc={$appStore.selection.originalUrl}
-        cutoutSrc={$appStore.artifacts?.cutoutUrl}
-        stage={$appStore.processingStage}
-      />
+      <div class="media-shell" style={mediaShellStyle}>
+        <RevealOverlay
+          originalSrc={$appStore.selection.originalUrl}
+          cutoutSrc={$appStore.artifacts?.cutoutUrl}
+          stage={$appStore.processingStage}
+        />
+      </div>
 
       <div class="workspace-message">
         <p class="eyebrow">Processing</p>
@@ -117,21 +128,25 @@
         </div>
       </div>
     {:else if $appStore.appState === "completed" && $appStore.artifacts}
-      <CompareSlider
-        originalSrc={$appStore.selection.originalUrl}
-        cutoutSrc={$appStore.artifacts.cutoutUrl}
-        maskSrc={$appStore.artifacts.maskUrl}
-        viewMode={$appStore.viewMode}
-      />
+      <div class="media-shell" style={mediaShellStyle}>
+        <CompareSlider
+          originalSrc={$appStore.selection.originalUrl}
+          cutoutSrc={$appStore.artifacts.cutoutUrl}
+          maskSrc={$appStore.artifacts.maskUrl}
+          viewMode={$appStore.viewMode}
+        />
+      </div>
     {/if}
   </div>
 
   <div class="workspace-footer">
     <ViewToggle />
     <ExportControls
+      canReset={Boolean($appStore.selection || $appStore.artifacts)}
       cutoutUrl={$appStore.artifacts?.cutoutUrl}
       maskUrl={$appStore.artifacts?.maskUrl}
       originalFileName={$appStore.selection?.fileName}
+      {onReset}
       {onDownload}
     />
   </div>
@@ -185,12 +200,26 @@
   }
 
   .preview-frame {
+    height: 100%;
     overflow: hidden;
+  }
+
+  .media-shell {
+    justify-self: center;
+    width: min(
+      100%,
+      calc(
+        520px * var(--workspace-media-width, 4) /
+          var(--workspace-media-height, 3)
+      )
+    );
+    aspect-ratio: var(--workspace-media-width, 4) /
+      var(--workspace-media-height, 3);
   }
 
   .preview-frame img {
     width: 100%;
-    max-height: 520px;
+    height: 100%;
     object-fit: contain;
     background: color-mix(in srgb, var(--paper) 90%, transparent);
   }
